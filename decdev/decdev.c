@@ -65,45 +65,52 @@ static int dev_release(struct inode *ino, struct file *fil) {
 static ssize_t dev_read(struct file *fil, char *data, size_t data_len, loff_t *t) {
     int i = 0;
     int j = 0;
+
     int count = 0;
-    char transfer[BLOCKSIZE];
-    //int i;
-    for(i=0;i<writePtr;i++) {
+
+    char transfer[data_len];
+
+    for(i = 0; i < writePtr; i++) {
         transfer[i] = original[i];
-        count++;
     }
-    //readPtr += BLOCKSIZE;
-    //int j;
-    j = copy_to_user(data, transfer, count);
+    if(writePtr < data_len) {
+        transfer[writePtr] = '0';
+    }
+    j = copy_to_user(data,transfer,writePtr);
     if(j == 0)
         printk("decdev READ : data read successfully from the device\n");
-    return BLOCKSIZE;
+
+    else 
+        printk("decdev TRANSFER : error transfering data to reader\n");
+
+    return writePtr;
 }
 
 static ssize_t dev_write(struct file *fil, char *data, size_t data_len, loff_t *t) {
 
-    int i=BLOCKSIZE;
+    //int i = 0;
     int k = 0;
-    if(writePtr < BLOCKSIZE) {
-       char transfer[BLOCKSIZE];
-       copy_from_user(transfer,data,BLOCKSIZE);
-       for(i=0;i<BLOCKSIZE;i++) {
-            original[i] = transfer[i];
-       }
-       writePtr += 16;
+
+    if(writePtr >= BUFFER_SIZE) {
+        printk("decdev BUFFERSIZE : device capacity reached. Cannot store more data");
+        return -1;
     }
-    else {
-        //int i;
-        while(i<data_len) {
-            for(k = 0;k < 16;k++) {
-               original[writePtr+k] = data[i]^data[i+k];
-            }
-            i += BLOCKSIZE;
-            writePtr += BLOCKSIZE;
+    // return BLOCKSIZE;
+    while(writePtr < BLOCKSIZE) {
+       
+       original[writePtr] = data[writePtr];
+       writePtr++;
+       //writePtr += BLOCKSIZE;
+    }
+    while(data_len - writePtr <= BLOCKSIZE) {
+        for(k = 0; k < BLOCKSIZE; k++) {
+            original[writePtr+k] = data[writePtr+k-BLOCKSIZE]^data[writePtr+k];
         }
+        writePtr += BLOCKSIZE;
     }
+
     printk("decdev WRITE : data written successfully to the device\n");
-    return BLOCKSIZE;
+    return data_len;
 }
 
 
