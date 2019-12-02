@@ -4,6 +4,8 @@
 #include <string.h>
 
 #define DEVICE_NAME "encdev"
+#define BLOCK_SIZE 16
+#define BUFFER_SIZE 256
 
 static struct file_operations dev_operations = {
     .open = dev_open,
@@ -19,7 +21,10 @@ static ssize_t dev_write(struct file *, char *, size_t, loff_t *);
 
 int reg;
 
-static char buffer[256] = {};
+static char buffer[BUFFER_SIZE] = {};
+EXPORT_SYMBOL(buffer);
+static int writePtr = 0;
+static int readPtr = 0;
 
 int init_module(void) {
 
@@ -54,15 +59,48 @@ static int dev_release(struct inode *ino, struct file *fil) {
 }
 
 static ssize_t dev_read(struct file *fil, char *data, ssize_t data_len, loff_t *t) {
-    int i = copy_to_user(data, buffer, sizeof(*buffer));
+    char transfer[BLOCK_SIZE] = {};
+    for(int i = 0; i < BLOCK_SIZE; i++) {
+        transfer[i] = buffer[readPtr+i];
+    }
+    readPtr += BLOCK_SIZE;
+    int i = copy_to_user(data,transfer,BLOCK_SIZE);
     if(i == 0)
         printk("encdev READ : data read successfully from the device\n");
-    return 0;
+    return BLOCK_SIZE
 }
 
 static ssize_t dev_write(struct file *fil, char *data, ssize_t data_len, loff_t *t) {
+
+    if(writePtr >= 256) {
+        printk("encdev BUFFERSIZE : device capacity reached. Cannot store more data");
+        return -1;
+    }
+
+    if(writePtr < BLOCK_SIZE) {
+        int random_fd = open("/dev/urandom", O_RDONLY);
+        if (random_fd < 0){
+            printk("encdev RANDOM : error in generating random key");
+            return -2;
+        }
+        ssize_t result = read(random_fd, buffer, BLOCK_SIZE);
+        if(result < 0){
+            printk("encdev GENERATION : error while reading urandom");
+            return -3;
+        }
+        writePtr += BLOCK_SIZE;
+        close(random_fd);
+    }
+    else {
+        char transfer[BLOCK_SIZE];
+        int i = copy_from_user(transfer, data, BLOCK_SIZE);
+        for(int i = 0;i<BLOCK_SIZE;i++) {
+            buffer[writePtr+i] = transfer[i]^buffer[writePtr+i-16];
+        }
+        writePtr += 16;
+    }
     printk("encdev WRITE : data written successfully to the device\n");
-    return 0;
+    return BLOCK_SIZE;
 }
 
 
