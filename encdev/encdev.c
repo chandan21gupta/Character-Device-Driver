@@ -14,6 +14,8 @@
 static int dev_open(struct inode *, struct file *);
 static int dev_release(struct inode *, struct file *);
 static ssize_t dev_read(struct file *, char *, size_t, loff_t *);
+//static ssize_t dev_write(struct file *, char *, size_t, loff_t *);
+
 static ssize_t dev_write(struct file *, char *, size_t, loff_t *);
 
 static struct file_operations dev_operations = {
@@ -28,7 +30,7 @@ int reg;
 static char buffer[BUFFER_SIZE] = {};
 //EXPORT_SYMBOL(buffer);
 static int writePtr = 0;
-static int readPtr = 0;
+//static int readPtr = 0;
 
 int init_module(void) {
 
@@ -65,22 +67,26 @@ static int dev_release(struct inode *ino, struct file *fil) {
 static ssize_t dev_read(struct file *fil, char *data, size_t data_len, loff_t *t) {
     int i=0;
     int j = 0;
+    int count = 0;
     char transfer[BLOCKSIZE] = {};
     //int i = 0;
-    for(i = 0; i < BLOCKSIZE; i++) {
-        transfer[i] = buffer[readPtr+i];
+    for(i = 0; i < writePtr; i++) {
+        transfer[i] = buffer[i];
+        count++;
     }
-    readPtr += BLOCKSIZE;
+    //readPtr += BLOCKSIZE;
     //int j = 0;
-    j = copy_to_user(data,transfer,BLOCKSIZE);
+    j = copy_to_user(data,transfer,count);
     if(j == 0)
         printk("encdev READ : data read successfully from the device\n");
-    return BLOCKSIZE;
+    return count;
 }
 
 static ssize_t dev_write(struct file *fil, char *data, size_t data_len, loff_t *t) {
-    int i = 0;
-    if(writePtr >= 256) {
+    int i = BLOCKSIZE;
+    int k = 0;
+    int count = 0;
+    if(writePtr >= BUFFER_SIZE) {
         printk("encdev BUFFERSIZE : device capacity reached. Cannot store more data");
         return 1;
     }
@@ -102,16 +108,22 @@ static ssize_t dev_write(struct file *fil, char *data, size_t data_len, loff_t *
         filp_close(random_fd,NULL);
     }
     else {
-        char transfer[BLOCKSIZE];
-        copy_from_user(transfer, data, BLOCKSIZE);
-        for(i = 0;i<BLOCKSIZE;i++) {
-            buffer[writePtr+i] = transfer[i]^buffer[writePtr+i-16];
+        char transfer[data_len];
+        copy_from_user(transfer, data, data_len);
+        while(i<data_len) {
+            for(k=0;k<16;k++) {
+                buffer[writePtr+k] = buffer[i]^transfer[i+k];
+            }
+            i += BLOCKSIZE;
+            writePtr += BLOCKSIZE;
         }
-        writePtr += 16;
     }
     printk("encdev WRITE : data written successfully to the device\n");
-    return (ssize_t)BLOCKSIZE;
+    return count;
 }
+
+
+
 
 
 

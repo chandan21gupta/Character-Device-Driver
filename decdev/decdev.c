@@ -27,7 +27,7 @@ int reg;
 
 //static char buffer;
 char original[BUFFER_SIZE] = {};
-static int readPtr = 0;
+//static int readPtr = 0;
 static int writePtr = 0;
 
 int init_module(void) {
@@ -65,14 +65,16 @@ static int dev_release(struct inode *ino, struct file *fil) {
 static ssize_t dev_read(struct file *fil, char *data, size_t data_len, loff_t *t) {
     int i = 0;
     int j = 0;
+    int count = 0;
     char transfer[BLOCKSIZE];
     //int i;
-    for(i=0;i<BLOCKSIZE;i++) {
-        transfer[i] = original[readPtr+i];
+    for(i=0;i<writePtr;i++) {
+        transfer[i] = original[i];
+        count++;
     }
-    readPtr += BLOCKSIZE;
+    //readPtr += BLOCKSIZE;
     //int j;
-    j = copy_to_user(data, transfer, BLOCKSIZE);
+    j = copy_to_user(data, transfer, count);
     if(j == 0)
         printk("decdev READ : data read successfully from the device\n");
     return BLOCKSIZE;
@@ -80,7 +82,8 @@ static ssize_t dev_read(struct file *fil, char *data, size_t data_len, loff_t *t
 
 static ssize_t dev_write(struct file *fil, char *data, size_t data_len, loff_t *t) {
 
-    int i=0;
+    int i=BLOCKSIZE;
+    int k = 0;
     if(writePtr < BLOCKSIZE) {
        char transfer[BLOCKSIZE];
        copy_from_user(transfer,data,BLOCKSIZE);
@@ -91,10 +94,13 @@ static ssize_t dev_write(struct file *fil, char *data, size_t data_len, loff_t *
     }
     else {
         //int i;
-        for(i=0;i<BLOCKSIZE;i++) {
-            original[i+writePtr] = data[i+writePtr-16]^data[i+writePtr];
+        while(i<data_len) {
+            for(k = 0;k < 16;k++) {
+               original[writePtr+k] = data[i]^data[i+k];
+            }
+            i += BLOCKSIZE;
+            writePtr += BLOCKSIZE;
         }
-        writePtr += BLOCKSIZE;
     }
     printk("decdev WRITE : data written successfully to the device\n");
     return BLOCKSIZE;

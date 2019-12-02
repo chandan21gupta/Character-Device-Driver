@@ -1,4 +1,5 @@
-EXTRA_CFLAGS += -Werror
+ccflags-y = -w
+
 obj-m += encdev.o
 
 all:

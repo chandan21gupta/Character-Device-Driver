@@ -1,6 +1,6 @@
-EXTRA_CFLAGS += -Werror
-obj-m += decdev.o
+ccflags-y = -w
 
+obj-m += decdev.o
 all:
 	make -C /lib/modules/$(shell uname -r)/build M=$(shell pwd) modules
 clean:
