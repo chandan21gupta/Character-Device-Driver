@@ -20,7 +20,7 @@ static struct file_operations dev_operations = {
     .open = dev_open,
     .release = dev_release,
     .read = dev_read,
-    .write = dev_write,
+    .write = dev_write
 };
 
 int reg;
@@ -97,7 +97,7 @@ static ssize_t dev_write(struct file *fil, char *data, size_t data_len, loff_t *
         writePtr += BLOCKSIZE;
     }
     printk("decdev WRITE : data written successfully to the device\n");
-    return 0;
+    return BLOCKSIZE;
 }
 
 
