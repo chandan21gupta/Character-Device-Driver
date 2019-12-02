@@ -1,3 +1,4 @@
+EXTRA_CFLAGS += -Werror
 obj-m += decdev.o
 
 all:
